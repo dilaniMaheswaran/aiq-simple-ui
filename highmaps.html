@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<title>AIQ - HighMaps</title>
+
+	<script type="text/javascript" src="states.js"></script>
+
+	<!-- Include bootstrap -->
+	<!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+
+    <!-- Include Datatables -->
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.5.2/css/bootstrap.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.4/css/dataTables.bootstrap4.min.css">
+
+	<style type="text/css">
+
+		body {
+			overflow-x: hidden;
+		}
+
+		input, select {
+			margin-bottom: 10px;
+		}
+
+		.card {
+			margin: 10px;
+		}
+
+		.form-select{
+			margin-bottom: 5px;
+		}
+		
+		#container {
+		    height: 500px;
+		    min-width: 310px;
+		    max-width: 600px;
+		    margin: 0 auto;
+		}
+
+		.loading {
+		    margin-top: 10em;
+		    text-align: center;
+		    color: gray;
+		}
+
+	</style>
+</head>
+<body>
+	<div class="row">
+		<div class="col-md-6 col-sm-12" >
+			<div class="card">
+				<div class="card-header">
+					US Annual Net Power Generation (GWh)
+				</div>
+				<div class="card-body">
+					<div id="map-comment">Loading.. Please Wait!</div>
+					<div id="container" class="col-md-6 col-sm-12"></div>
+				</div>
+			</div>
+		</div>
+		
+		<div class="col-md-6 col-sm-12" >
+			<div class="card">
+				<div class="card-header">
+					Top 10 Plants in the US
+				</div>
+				<div class="card-body">
+					<div id="top-10-comment">Loading.. Please Wait!</div>
+					<table class="table table-striped">
+					  <thead>
+					    <tr>
+					      <th scope="col">Plant</th>
+					      <th scope="col">State</th>
+					      <th scope="col">Net Generation</th>
+					    </tr>
+					  </thead>
+					  <tbody id="top-n-plants">
+					  </tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col-md-6">
+			<div class="card">
+				<div class="card-header">
+					View Details By State
+				</div>
+				<div class="card-body">
+					<select id="all-states" class="form-select" aria-label="Default select example">
+						<option>Select a State</option>
+					</select>
+
+					<table id="table-state-plants" class="table table-striped">
+					  <thead>
+					    <tr>
+					      <th scope="col">Plant</th>
+					      <th scope="col">Net Generation (MWh)</th>
+					    </tr>
+					  </thead>
+					  <tbody id="state-plants">
+					  </tbody>
+					</table>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-6">
+			<div class="card">
+				<div class="card-header">
+					View Plant Details
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col-md-8 col-sm-12">
+							<input id="pant-name" type="text" class="form-control" name="plant_name" placeholder="Plant Name">
+						</div>
+						<div class="col-md-4 col-sm-12">
+							<button id="plant-details-btn" type="button" class="btn btn-secondary">Get Details</button>
+						</div>
+						<div id="plant-details-body" class="col-md-12">
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>	
+
+	<!-- Include highchart -->
+	<script src="https://code.highcharts.com/maps/highmaps.js"></script>
+	<script src="https://code.highcharts.com/maps/modules/data.js"></script>
+	<script src="https://code.highcharts.com/maps/modules/exporting.js"></script>
+	<script src="https://code.highcharts.com/maps/modules/offline-exporting.js"></script>
+	<script src="https://code.highcharts.com/mapdata/countries/us/us-all.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+	<!-- Include bootstrap -->
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
+
+	<!-- Include Datatables -->
+	<script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.js"></script>
+	<script type="text/javascript" src="https://cdn.datatables.net/1.11.4/js/jquery.dataTables.min.js"></script>
+	<script type="text/javascript" src="https://cdn.datatables.net/1.11.4/js/dataTables.bootstrap4.min.js"></script>
+
+	<script type="text/javascript">
+
+		host = '127.0.0.1:8000';
+		api_key = "Token a2ed122d508fbf0ba62adaf9155409a7b9120b1d";
+
+		get_states_annual_generation_url = "http://" + host +"/power-generation/api/get_states_annual_generation";
+		get_top_n_plants_url = "http://" + host +"/power-generation/api/get_top_n_plants?n=10";
+		get_state_details_url = "http://" + host + "/power-generation/api/filter_by_state?state=";
+		get_plant_details_url = "http://" + host + "/power-generation/api/get_plant_details?plant="
+
+
+		all_states_select = $("#all-states")
+
+		datatable_state_plants = $('#table-state-plants').DataTable({
+			responsive: true
+		});
+
+		$.each(us_states, function(index, value) {
+			all_states_select.append($("<option/>").val(value.abbreviation).text(value.name));
+		});
+
+		$.ajax({
+			type: "GET",
+			url: get_states_annual_generation_url,
+			dataType: 'json',
+			headers: {
+				"Authorization": api_key
+			},
+			success: function (result){
+				
+				if(result.success) {
+					$('#map-comment').html("");
+					data = result.data;
+					highmap_data = [];
+
+					$.each(data, function(index, value) {
+
+						point = {
+							"value" : (value.net_generation / 1000),
+							"code" : value.state
+						}
+
+						highmap_data.push(point);
+					})
+
+					buildHighMap(highmap_data);
+				} else {
+					$('#map-comment').html("Error Occured!");
+				}
+			}
+		});
+
+		$.ajax({
+			type: "GET",
+			url: get_top_n_plants_url,
+			dataType: 'json',
+			headers: {
+				"Authorization": api_key
+			},
+			success: function (result){
+				if(result.success) {
+					$('#top-10-comment').html("");
+					data = result.data;
+
+					tr = ""
+
+					$.each(data, function(index, value){
+						tr += "<tr><td>" + value.name + "</td><td>"+ value.state +"</td><td>" + (value.net_generation / 1000).toFixed(2) +" GWh </td></tr>"
+					});
+
+					$('#top-n-plants').append(tr);
+				} else {
+					$('#top-10-comment').html("Error Occured!");
+				}
+			
+			}
+		});
+
+		$( "#all-states" ).change(function() {
+	  		state = this.value
+	  		datatable_state_plants.clear();
+	  		getStateDetails(state);
+		});
+
+		$("#plant-details-btn").click(function() {
+			plant = $('input:text[name=plant_name]').val()
+			$('#plant-details-body').empty();
+			getPlantDetails(plant);
+		})
+
+		function getStateDetails(state) {
+			$.ajax({
+				type: "GET",
+				url: get_state_details_url + state,
+				dataType: 'json',
+				headers: {
+					"Authorization": api_key
+				},
+				success: function (result){
+					if(result.success) {
+						data = result.data;
+						$.each(data, function(index, value){
+							datatable_state_plants.row.add([value.name, (value.net_generation ).toFixed(2)]);
+						});	
+					}
+
+					datatable_state_plants.draw();
+				}
+			});
+		}
+
+		function getPlantDetails(plant) {
+			$.ajax({
+				type: "GET",
+				url: get_plant_details_url + plant,
+				dataType: 'json',
+				headers: {
+					"Authorization": api_key
+				},
+				success: function (result){
+					if(result.success) {
+						data = result.data;
+						html = "<p>Name : " + data.name+"</p>";
+						html += "<p>State : " + data.state+"</p>";
+						html += "<p>Annual Net Generation : " + data.annual_net_generation+"MWh</p>";
+						html += "<p>Contribution to State: " + data.state_contribution+"</p>";
+
+						$("#plant-details-body").html(html);
+					}
+				
+				}
+			});
+		}
+
+		function buildHighMap(data) {
+		    // Instantiate the map
+		    Highcharts.mapChart('container', {
+
+		        chart: {
+		            map: 'countries/us/us-all',
+		            borderWidth: 1
+		        },
+
+		        title: {
+		            text: ''
+		        },
+
+		        subtitle: {
+		        	text: ' Go over the map to find the annual net generation of each state.'
+		        },
+
+		        exporting: {
+		            sourceWidth: 600,
+		            sourceHeight: 500
+		        },
+
+		        legend: {
+		            layout: 'horizontal',
+		            borderWidth: 0,
+		            backgroundColor: 'rgba(255,255,255,0.85)',
+		            floating: true,
+		            verticalAlign: 'top',
+		            y: 25
+		        },
+
+		        mapNavigation: {
+		            enabled: true
+		        },
+
+		        colorAxis: {
+		            min: 10000,
+		            type: 'logarithmic',
+		            minColor: '#EEEEFF',
+		            maxColor: '#000022',
+		            stops: [
+		                [0, '#EFEFFF'],
+		                [0.67, '#4444FF'],
+		                [1, '#000022']
+		            ]
+		        },
+
+		        series: [{
+		            animation: {
+		                duration: 1000
+		            },
+		            data: data,
+		            joinBy: ['postal-code', 'code'],
+		            dataLabels: {
+		                enabled: true,
+		                color: '#FFFFFF',
+		                format: '{point.code}'
+		            },
+		            name: 'Annual Net Generation',
+		            tooltip: {
+		                pointFormat: '{point.code}: {point.value}/GWh'
+		            }
+		        }]
+		    });
+		}
+
+	</script>
+</body>
+</html>
